@@ -112,21 +112,21 @@ The Repository Pattern will be used. Services will call repository methods (e.g.
 
 ## Development Roadmap
 
-### Phase 1: Project Setup & Architecture Skeleton
+### [x] Phase 1: Project Setup & Architecture Skeleton
 * **Goal**: Initialize the project with the required folder structure, TypeScript, Express, error handling, and testing environment.
 * **Deliverables**: Base repository with Express server, standard middlewares, config files, and a health check endpoint.
 * **Dependencies**: Node.js, Express, TypeScript, Jest.
 * **Test requirements**: Unit test for the health check endpoint.
 * **Definition of completion**: Server runs successfully, `npm test` passes, and the base folder structure matches the plan.
 
-### Phase 2: Database Setup & User Module
-* **Goal**: Set up PostgreSQL + Prisma, create User models, and implement basic user CRUD.
-* **Deliverables**: Prisma schema, DB connection, User Repository, User Service, User Controller.
-* **Dependencies**: Phase 1, PostgreSQL, Prisma.
+### [x] Phase 2: Database Setup & User Module
+* **Goal**: Set up PostgreSQL + SQLAlchemy (migrated to Python), create User models, and implement basic user CRUD.
+* **Deliverables**: SQLAlchemy schema, DB connection, User Router & Pydantic Schemas.
+* **Dependencies**: Phase 1, PostgreSQL, FastAPI.
 * **Test requirements**: Integration tests for user creation and retrieval endpoints.
 * **Definition of completion**: DB connects successfully, and User endpoints pass integration tests.
 
-### Phase 3: Authentication & Security
+### [x] Phase 3: Authentication & Security
 * **Goal**: Implement JWT auth, login, registration, email/OTP verification, and password reset.
 * **Deliverables**: Auth Controller/Service, JWT utility, Email utility, protected route middleware.
 * **Dependencies**: Phase 2, jsonwebtoken, nodemailer/sendgrid, bcryptjs.
