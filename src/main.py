@@ -3,11 +3,19 @@ from src.database.connection import engine, Base
 from src.modules.users import router as users_router
 from src.modules.auth import router as auth_router
 from src.modules.accounts import router as accounts_router
+from src.modules.categories import router as categories_router
+from src.modules.products import router as products_router
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
 
 Base.metadata.create_all(bind=engine)
 
+os.makedirs("uploads", exist_ok=True)
+
 app = FastAPI(title="MediStore API")
+
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,6 +28,8 @@ app.add_middleware(
 app.include_router(users_router.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(auth_router.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(accounts_router.router, prefix="/api/v1/accounts", tags=["accounts"])
+app.include_router(categories_router.router, prefix="/api/v1/categories", tags=["categories"])
+app.include_router(products_router.router, prefix="/api/v1/products", tags=["products"])
 
 @app.get("/health")
 def health_check():

@@ -133,7 +133,7 @@ The Repository Pattern will be used. Services will call repository methods (e.g.
 * **Test requirements**: Unit tests for JWT/hash utilities. Integration tests for registration, login, and protected routes.
 * **Definition of completion**: Users can register, verify email via OTP, log in, and access protected routes.
 
-### Phase 4: Product & Category Management
+### [x] Phase 4: Product & Category Management
 * **Goal**: Build the catalog system for products and categories.
 * **Deliverables**: Product and Category models, repositories, services, and controllers (including image upload logic).
 * **Dependencies**: Phase 3, Multer, Cloudinary/AWS S3.
