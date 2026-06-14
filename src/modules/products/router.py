@@ -20,9 +20,12 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 @router.post("/", response_model=schemas.ProductResponse)
 def create_product(
     name: str = Form(...),
+    product_code: Optional[str] = Form(None),
     category_id: int = Form(...),
     price: float = Form(...),
+    offer: int = Form(0),
     stock: int = Form(0),
+    short_description: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
     is_active: bool = Form(True),
     image: Optional[UploadFile] = File(None),
@@ -45,9 +48,12 @@ def create_product(
 
     new_product = Product(
         name=name,
+        product_code=product_code,
         category_id=category_id,
         price=price,
+        offer=offer,
         stock=stock,
+        short_description=short_description,
         description=description,
         is_active=is_active,
         image_url=image_url
@@ -70,9 +76,12 @@ def create_product_json(
         
     new_product = Product(
         name=payload.name,
+        product_code=payload.product_code,
         category_id=payload.category_id,
         price=payload.price,
+        offer=payload.offer,
         stock=payload.stock,
+        short_description=payload.short_description,
         description=payload.description,
         is_active=payload.is_active,
         image_url=payload.image_url,
@@ -84,10 +93,42 @@ def create_product_json(
     db.refresh(new_product)
     return new_product
 
-@router.get("/all_products/", response_model=List[schemas.ProductResponse])
-def get_all_products(db: Session = Depends(get_db)):
-    # Used by frontend
-    return db.query(Product).all()
+from fastapi import Query
+
+@router.get("/all_products/", response_model=schemas.PaginatedProductResponse)
+def get_all_products(
+    category_id: Optional[int] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    search: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(8, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Product).filter(Product.is_active == True)
+
+    if category_id:
+        query = query.filter(Product.category_id == category_id)
+    if min_price is not None:
+        query = query.filter(Product.price >= min_price)
+    if max_price is not None:
+        query = query.filter(Product.price <= max_price)
+    if search:
+        query = query.filter(Product.name.ilike(f"%{search}%"))
+
+    from sqlalchemy import func
+    max_price_overall = db.query(func.max(Product.price)).filter(Product.is_active == True).scalar() or 0
+
+    total_count = query.count()
+    products = query.offset((page - 1) * limit).limit(limit).all()
+
+    return {
+        "total": total_count,
+        "page": page,
+        "limit": limit,
+        "max_price_overall": max_price_overall,
+        "products": products
+    }
 
 @router.get("/{product_id}", response_model=schemas.ProductResponse)
 def get_product(product_id: int, db: Session = Depends(get_db)):

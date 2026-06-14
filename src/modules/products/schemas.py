@@ -4,8 +4,11 @@ from datetime import datetime
 
 class ProductBase(BaseModel):
     name: str
+    product_code: Optional[str] = None
+    short_description: Optional[str] = None
     description: Optional[str] = None
     price: float
+    offer: Optional[int] = 0
     stock: int
     is_active: bool = True
 
@@ -28,6 +31,14 @@ class ProductResponse(ProductBase):
     category_id: int
     image_url: Optional[str] = None
     created_at: datetime
+    features: Optional[List[str]] = None
+    specs: Optional[Dict[str, str]] = None
 
     class Config:
         from_attributes = True
+
+class PaginatedProductResponse(BaseModel):
+    total: int
+    page: int
+    limit: int
+    products: List[ProductResponse]
