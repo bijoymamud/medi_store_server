@@ -5,6 +5,7 @@ from src.modules.auth import router as auth_router
 from src.modules.accounts import router as accounts_router
 from src.modules.categories import router as categories_router
 from src.modules.products import router as products_router
+from src.modules.cart import router as cart_router
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
@@ -30,6 +31,7 @@ app.include_router(auth_router.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(accounts_router.router, prefix="/api/v1/accounts", tags=["accounts"])
 app.include_router(categories_router.router, prefix="/api/v1/categories", tags=["categories"])
 app.include_router(products_router.router, prefix="/api/v1/products", tags=["products"])
+app.include_router(cart_router.router, prefix="/api/v1/cart", tags=["cart"])
 
 @app.get("/health")
 def health_check():

@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from src.database.connection import Base
 
 class User(Base):
@@ -17,4 +18,6 @@ class User(Base):
     otp_code = Column(String, nullable=True)
     otp_expiry = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    cart = relationship("Cart", back_populates="user", uselist=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

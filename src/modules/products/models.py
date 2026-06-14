@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, JSON
 from sqlalchemy.sql import func
 from src.database.connection import Base
 from sqlalchemy.orm import relationship
@@ -14,6 +14,8 @@ class Product(Base):
     stock = Column(Integer, default=0)
     image_url = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
+    features = Column(JSON, nullable=True)
+    specs = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     category = relationship("Category", back_populates="products")

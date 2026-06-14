@@ -9,7 +9,8 @@ from src.database.connection import get_db
 from src.modules.products.models import Product
 from src.modules.categories.models import Category
 from src.modules.products import schemas
-from src.utils.dependencies import get_current_user
+from src.utils.dependencies import get_current_user, get_admin_user
+from src.modules.users.models import User
 
 router = APIRouter()
 
@@ -25,7 +26,8 @@ def create_product(
     description: Optional[str] = Form(None),
     is_active: bool = Form(True),
     image: Optional[UploadFile] = File(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_admin_user)
 ):
     # Check category exists
     category = db.query(Category).filter(Category.id == category_id).first()
@@ -49,6 +51,33 @@ def create_product(
         description=description,
         is_active=is_active,
         image_url=image_url
+    )
+    db.add(new_product)
+    db.commit()
+    db.refresh(new_product)
+    db.refresh(new_product)
+    return new_product
+
+@router.post("/json/", response_model=schemas.ProductResponse)
+def create_product_json(
+    payload: schemas.ProductCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_admin_user)
+):
+    category = db.query(Category).filter(Category.id == payload.category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+        
+    new_product = Product(
+        name=payload.name,
+        category_id=payload.category_id,
+        price=payload.price,
+        stock=payload.stock,
+        description=payload.description,
+        is_active=payload.is_active,
+        image_url=payload.image_url,
+        features=payload.features,
+        specs=payload.specs
     )
     db.add(new_product)
     db.commit()
@@ -77,7 +106,8 @@ def update_product(
     description: Optional[str] = Form(None),
     is_active: Optional[bool] = Form(None),
     image: Optional[UploadFile] = File(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_admin_user)
 ):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
@@ -113,7 +143,7 @@ def update_product(
     return product
 
 @router.delete("/{product_id}")
-def delete_product(product_id: int, db: Session = Depends(get_db)):
+def delete_product(product_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_admin_user)):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")

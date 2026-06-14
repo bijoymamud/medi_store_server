@@ -8,7 +8,8 @@ import uuid
 from src.database.connection import get_db
 from src.modules.categories.models import Category
 from src.modules.categories import schemas
-from src.utils.dependencies import get_current_user
+from src.utils.dependencies import get_current_user, get_admin_user
+from src.modules.users.models import User
 
 router = APIRouter()
 
@@ -21,6 +22,7 @@ def create_category(
     description: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_admin_user)
 ):
     # Check if category exists
     existing = db.query(Category).filter(Category.name == name).first()
@@ -63,7 +65,8 @@ def update_category(
     name: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_admin_user)
 ):
     category = db.query(Category).filter(Category.id == category_id).first()
     if not category:
@@ -87,7 +90,7 @@ def update_category(
     return category
 
 @router.delete("/{category_id}")
-def delete_category(category_id: int, db: Session = Depends(get_db)):
+def delete_category(category_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_admin_user)):
     category = db.query(Category).filter(Category.id == category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")

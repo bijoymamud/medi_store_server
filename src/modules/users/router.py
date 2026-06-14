@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File
+from pydantic import BaseModel
+from src.utils.dependencies import get_admin_user
 from sqlalchemy.orm import Session
 from src.database.connection import get_db
 from src.modules.users import models, schemas
@@ -63,3 +65,19 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     return db_user
+
+class PromoteRequest(BaseModel):
+    email: str
+
+@router.post("/promote")
+def promote_user(
+    payload: PromoteRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_admin_user)
+):
+    user = db.query(models.User).filter(models.User.email == payload.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_admin = True
+    db.commit()
+    return {"message": f"{user.email} has been promoted to admin"}

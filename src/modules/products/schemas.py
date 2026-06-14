@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional, Dict
 from datetime import datetime
 
 class ProductBase(BaseModel):
@@ -11,6 +11,9 @@ class ProductBase(BaseModel):
 
 class ProductCreate(ProductBase):
     category_id: int
+    image_url: Optional[str] = None
+    features: Optional[List[str]] = None
+    specs: Optional[Dict[str, str]] = None
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None

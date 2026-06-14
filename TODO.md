@@ -140,12 +140,16 @@ The Repository Pattern will be used. Services will call repository methods (e.g.
 * **Test requirements**: Tests for creating categories, creating products, and retrieving products (with pagination/filtering).
 * **Definition of completion**: API supports full CRUD for products and categories with image uploads.
 
-### Phase 5: Cart System
+### [x] Phase 5: Cart System
 * **Goal**: Implement the shopping cart.
 * **Deliverables**: Cart and CartItem models/endpoints to add, update, and remove items.
 * **Dependencies**: Phase 4.
 * **Test requirements**: Tests ensuring correct cart total calculations and item management.
 * **Definition of completion**: Users can manage their cart, and prices/totals are correctly computed based on the DB product prices.
+
+### [x] Phase 5.5: Admin Dashboard
+* **Goal**: Implement admin dashboard, protect API endpoints, and allow JSON product imports.
+* **Deliverables**: Admin APIs, dashboard UI, secure `get_admin_user` backend routes.
 
 ### Phase 6: Order & Checkout Management
 * **Goal**: Convert carts to orders and integrate payment processing.
