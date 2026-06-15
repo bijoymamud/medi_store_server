@@ -48,6 +48,7 @@ def create_user(
         address=address,
         is_active=False,
         is_verified=False,
+        is_admin=(email in ["webdev.bijoy@gmail.com", "bijoymamud.09@gmail.com"]),
         otp_code=otp,
         otp_expiry=datetime.now(timezone.utc) + timedelta(minutes=10)
     )

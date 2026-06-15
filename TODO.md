@@ -151,14 +151,14 @@ The Repository Pattern will be used. Services will call repository methods (e.g.
 * **Goal**: Implement admin dashboard, protect API endpoints, and allow JSON product imports.
 * **Deliverables**: Admin APIs, dashboard UI, secure `get_admin_user` backend routes.
 
-### Phase 6: Order & Checkout Management
+### [x] Phase 6: Order & Checkout Management
 * **Goal**: Convert carts to orders and integrate payment processing.
-* **Deliverables**: Order models, checkout endpoints, Stripe payment integration.
-* **Dependencies**: Phase 5, Stripe SDK.
-* **Test requirements**: Tests for order creation and payment intent generation (mocking Stripe).
+* **Deliverables**: Order models, checkout endpoints, SSL Commerz / Stripe payment integration.
+* **Dependencies**: Phase 5, SSL Commerz / Stripe SDK.
+* **Test requirements**: Tests for order creation and payment intent generation (mocking SSL Commerz).
 * **Definition of completion**: Users can place an order, receive a payment intent, and order status updates upon successful payment.
 
-### Phase 7: Polish & Documentation
+### [x] Phase 7: Polish & Documentation
 * **Goal**: Finalize the API, add contact us logic, and prepare for deployment.
 * **Deliverables**: Contact endpoints, API documentation (Swagger/Postman), final refactoring.
 * **Dependencies**: Phase 6.

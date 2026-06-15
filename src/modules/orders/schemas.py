@@ -1,0 +1,40 @@
+from pydantic import BaseModel, Field
+from typing import List, Optional
+from datetime import datetime
+
+class CheckoutRequest(BaseModel):
+    shipping_address: str
+    phone: str
+    payment_method: str = Field(..., pattern="^(sslcommerz|cod)$")
+
+class OrderItemResponse(BaseModel):
+    id: int
+    product_id: int
+    product_name: str
+    quantity: int
+    price: float
+    product_image: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class OrderResponse(BaseModel):
+    id: int
+    user_id: int
+    user_name: Optional[str] = None
+    user_email: Optional[str] = None
+    total_amount: float
+    shipping_address: str
+    phone: str
+    status: str
+    payment_method: str
+    transaction_id: str
+    created_at: datetime
+    items: List[OrderItemResponse]
+    payment_url: Optional[str] = None    # SSLCommerz redirect URL
+
+    class Config:
+        from_attributes = True
+
+class OrderStatusUpdate(BaseModel):
+    status: str = Field(..., pattern="^(pending|paid|failed|completed|cancelled)$")

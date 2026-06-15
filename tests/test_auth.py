@@ -11,20 +11,36 @@ def test_register_and_login():
     unique_email = "testauth@example.com"
     response = client.post(
         "/api/v1/users/",
-        json={"email": unique_email, "password": "securepassword", "full_name": "Auth Tester"}
+        data={
+            "first_name": "Auth",
+            "last_name": "Tester",
+            "email": unique_email,
+            "password": "securepassword",
+            "address": "123 Test St",
+            "phone": "01700000000"
+        }
     )
     # Could be 201 or 400 if already exists
     assert response.status_code in [201, 400]
     
-    # 2. Login (Before verification - should fail with 401 or succeed?)
-    # Wait, in the router we only check is_active for login. is_verified is checked in the dependency get_current_active_verified_user.
-    # So login itself will succeed.
+    # 2. Activate user in DB directly so they can log in
+    from src.database.connection import SessionLocal
+    from src.modules.users.models import User
+    db = SessionLocal()
+    db_user = db.query(User).filter(User.email == unique_email).first()
+    if db_user:
+        db_user.is_active = True
+        db_user.is_verified = True
+        db.commit()
+    db.close()
+
+    # 3. Login
     login_response = client.post(
         "/api/v1/auth/login",
-        data={"username": unique_email, "password": "securepassword"}
+        json={"email": unique_email, "password": "securepassword"}
     )
     assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
+    token = login_response.json()["tokens"]["access"]
     assert token is not None
 
 def test_verify_email_failure():

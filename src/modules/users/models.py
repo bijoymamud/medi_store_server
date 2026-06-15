@@ -12,6 +12,7 @@ class User(Base):
     full_name = Column(String)
     phone = Column(String, nullable=True)
     address = Column(String, nullable=True)
+    image = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
     is_verified = Column(Boolean, default=False)
@@ -19,5 +20,6 @@ class User(Base):
     otp_expiry = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
-    cart = relationship("Cart", back_populates="user", uselist=False)
+    cart = relationship("Cart", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
