@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -11,7 +11,10 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
 
+from src.utils.rate_limit import RateLimiter
+
 router = APIRouter()
+contact_limiter = RateLimiter(limit=5, window=60)
 
 def send_contact_admin_email(request: models.ContactRequest):
     smtp_email = os.getenv("SMTP_EMAIL")
@@ -49,9 +52,10 @@ Received at: {request.created_at}
     except Exception as e:
         print(f"Failed to send contact notification: {str(e)}")
 
-@router.post("/", response_model=schemas.ContactRequestResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=schemas.ContactRequestResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(contact_limiter)])
 def create_contact_request(
     payload: schemas.ContactRequestCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     db_request = models.ContactRequest(
@@ -65,7 +69,7 @@ def create_contact_request(
     db.refresh(db_request)
     
     # Send email notification to admin
-    send_contact_admin_email(db_request)
+    background_tasks.add_task(send_contact_admin_email, db_request)
     
     return db_request
 

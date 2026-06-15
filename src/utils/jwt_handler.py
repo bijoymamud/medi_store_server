@@ -2,9 +2,14 @@ import jwt
 from datetime import datetime, timedelta, timezone
 import os
 
-SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    if os.getenv("ENV") == "production":
+        raise RuntimeError("SECRET_KEY environment variable must be set in production!")
+    SECRET_KEY = "supersecretkey"
+
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 1 week
+ACCESS_TOKEN_EXPIRE_MINUTES = 30 # 30 minutes
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()

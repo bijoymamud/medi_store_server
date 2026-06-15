@@ -28,6 +28,11 @@ class OrderResponse(BaseModel):
     phone: str
     status: str
     payment_method: str
+    payment_status: str
+    review_status: str
+    review_text: Optional[str] = None
+    review_rating: Optional[int] = None
+    review_submitted_at: Optional[datetime] = None
     transaction_id: str
     created_at: datetime
     items: List[OrderItemResponse]
@@ -37,4 +42,11 @@ class OrderResponse(BaseModel):
         from_attributes = True
 
 class OrderStatusUpdate(BaseModel):
-    status: str = Field(..., pattern="^(pending|paid|failed|completed|cancelled)$")
+    status: str = Field(..., pattern="^(pending|under_process|completed|rejected|failed|cancelled)$")
+
+class ReviewSubmitRequest(BaseModel):
+    review_text: str
+    review_rating: Optional[int] = Field(None, ge=1, le=5)
+
+class ReviewVerifyRequest(BaseModel):
+    is_valid: bool

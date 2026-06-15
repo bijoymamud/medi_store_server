@@ -111,7 +111,7 @@ async def checkout(
     items_to_create = []
     
     for item in cart.items:
-        product = db.query(Product).filter(Product.id == item.product_id).first()
+        product = db.query(Product).filter(Product.id == item.product_id).with_for_update().first()
         if not product:
             raise HTTPException(status_code=404, detail=f"Product with ID {item.product_id} not found")
         if product.stock < item.quantity:
@@ -133,7 +133,9 @@ async def checkout(
         phone=payload.phone,
         payment_method=payload.payment_method,
         transaction_id=tran_id,
-        status="pending"
+        status="pending",
+        payment_status="pending",
+        review_status="requested"
     )
     db.add(new_order)
     db.flush()
@@ -148,8 +150,15 @@ async def checkout(
         )
         db.add(order_item)
         product.stock -= quantity
-        
-    # 6. Payment Integration processing
+    
+    # 6. Clear the cart items
+    db.query(CartItem).filter(CartItem.cart_id == cart.id).delete()
+    
+    # 7. Commit database transaction (releasing row locks and connection slot)
+    db.commit()
+    db.refresh(new_order)
+    
+    # 8. Payment Integration processing (performed OUTSIDE database transaction)
     payment_url = None
     
     if payload.payment_method == "sslcommerz":
@@ -162,24 +171,29 @@ async def checkout(
             customer_address=payload.shipping_address
         )
         if not payment_url:
-            db.rollback()
+            # Revert inventory stock and mark order as failed in a new short-lived transaction
+            try:
+                order_to_fail = db.query(models.Order).filter(models.Order.id == new_order.id).first()
+                if order_to_fail:
+                    order_to_fail.status = "failed"
+                    order_to_fail.payment_status = "failed"
+                    for item in order_to_fail.items:
+                        product = db.query(Product).filter(Product.id == item.product_id).first()
+                        if product:
+                            product.stock += item.quantity
+                    db.commit()
+                    db.refresh(new_order)
+            except Exception as revert_err:
+                print(f"Failed to reverse stock changes after payment failure: {revert_err}")
+                
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="Failed to initialize SSLCommerz payment session. Please check your configurations or network."
             )
-        
-    # 7. Clear the cart items
-    db.query(CartItem).filter(CartItem.cart_id == cart.id).delete()
-    
-    db.commit()
-    db.refresh(new_order)
-    
+            
     # Map to response schema
     response_obj = schemas.OrderResponse.model_validate(new_order)
     
-    # We populate the fields that are not automatically mapped
-    # since they are returned contextually for payment redirect/initialization
-    # and not stored directly as database columns
     response_dict = response_obj.model_dump()
     response_dict["payment_url"] = payment_url
     
@@ -210,7 +224,7 @@ def mark_payment_success(order_id: int, db: Session = Depends(get_db), current_u
     if order.user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Not authorized to update this order")
         
-    order.status = "paid"
+    order.payment_status = "paid"
     db.commit()
     db.refresh(order)
     return order
@@ -260,11 +274,11 @@ async def payment_success(request: Request, db: Session = Depends(get_db)):
         verified = await verify_sslcommerz_payment(val_id)
         
     if verified or is_testbox or not val_id:
-        order.status = "paid"
+        order.payment_status = "paid"
         db.commit()
         return RedirectResponse(url=f"{frontend_url}/order/success?order_id={order.id}", status_code=303)
     else:
-        order.status = "failed"
+        order.payment_status = "failed"
         db.commit()
         return RedirectResponse(url=f"{frontend_url}/order/failed?order_id={order.id}", status_code=303)
 
@@ -282,7 +296,7 @@ async def payment_fail(request: Request, db: Session = Depends(get_db)):
     if tran_id:
         order = db.query(models.Order).filter(models.Order.transaction_id == tran_id).first()
         if order:
-            order.status = "failed"
+            order.payment_status = "failed"
             db.commit()
             
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
@@ -303,6 +317,7 @@ async def payment_cancel(request: Request, db: Session = Depends(get_db)):
         order = db.query(models.Order).filter(models.Order.transaction_id == tran_id).first()
         if order:
             order.status = "cancelled"
+            order.payment_status = "failed"
             db.commit()
             
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
@@ -323,4 +338,80 @@ def delete_order(order_id: int, db: Session = Depends(get_db), admin_user: User 
     db.delete(order)
     db.commit()
     return {"status": "success", "message": "Order deleted successfully"}
+
+@router.post("/{order_id}/approve", response_model=schemas.OrderResponse)
+def approve_order(order_id: int, db: Session = Depends(get_db), admin_user: User = Depends(get_admin_user)):
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    order.status = "under_process"
+    db.commit()
+    db.refresh(order)
+    return order
+
+@router.post("/{order_id}/reject", response_model=schemas.OrderResponse)
+def reject_order(order_id: int, db: Session = Depends(get_db), admin_user: User = Depends(get_admin_user)):
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    order.status = "rejected"
+    db.commit()
+    db.refresh(order)
+    return order
+
+@router.post("/{order_id}/submit-review", response_model=schemas.OrderResponse)
+def submit_review(
+    order_id: int, 
+    payload: schemas.ReviewSubmitRequest,
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    if order.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to submit review for this order")
+        
+    if order.status != "under_process":
+        raise HTTPException(status_code=400, detail="Reviews can only be submitted for orders under process")
+        
+    if order.review_status not in ["requested", "rejected"]:
+        raise HTTPException(status_code=400, detail="A review has already been submitted or verified for this order")
+        
+    from sqlalchemy.sql import func
+    order.review_text = payload.review_text
+    order.review_rating = payload.review_rating
+    order.review_status = "submitted"
+    order.review_submitted_at = func.now()
+    
+    db.commit()
+    db.refresh(order)
+    return order
+
+@router.post("/{order_id}/verify-review", response_model=schemas.OrderResponse)
+def verify_review(
+    order_id: int,
+    payload: schemas.ReviewVerifyRequest,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_admin_user)
+):
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+        
+    if order.review_status != "submitted":
+        raise HTTPException(status_code=400, detail="No review submitted to verify")
+        
+    if payload.is_valid:
+        order.review_status = "verified"
+        order.status = "completed"
+    else:
+        order.review_status = "rejected"
+        
+    db.commit()
+    db.refresh(order)
+    return order
 

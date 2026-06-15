@@ -133,7 +133,7 @@ def test_checkout_flow_cod(setup_db):
     order_id = order_data["id"]
     pay_res = client.post(f"/api/v1/orders/{order_id}/pay-success", headers=headers)
     assert pay_res.status_code == 200
-    assert pay_res.json()["status"] == "paid"
+    assert pay_res.json()["payment_status"] == "paid"
 
 @patch("src.modules.orders.router.initiate_sslcommerz_payment")
 def test_checkout_payment_methods(mock_ssl, setup_db):
@@ -193,3 +193,138 @@ def test_checkout_payment_methods(mock_ssl, setup_db):
     )
     assert checkout_ssl.status_code == 200
     assert checkout_ssl.json()["payment_url"] == "http://mock-sslcommerz-redirect-url"
+
+def test_order_workflow_approval_and_review(setup_db):
+    db = setup_db
+    
+    # 1. Register user and admin
+    email = "workflow_user@example.com"
+    existing_user = db.query(User).filter(User.email == email).first()
+    if existing_user:
+        db.delete(existing_user)
+        db.commit()
+        
+    client.post(
+        "/api/v1/users/",
+        data={
+            "first_name": "Workflow",
+            "last_name": "User",
+            "email": email,
+            "password": "password123",
+            "phone": "01722222222",
+            "address": "789 Road, Dhaka"
+        }
+    )
+    
+    user = db.query(User).filter(User.email == email).first()
+    user.is_verified = True
+    user.is_active = True
+    db.commit()
+    
+    # Ensure there is an admin user for testing admin actions
+    admin_email = "admin_workflow@example.com"
+    admin_user = db.query(User).filter(User.email == admin_email).first()
+    if not admin_user:
+        client.post(
+            "/api/v1/users/",
+            data={
+                "first_name": "Admin",
+                "last_name": "Workflow",
+                "email": admin_email,
+                "password": "adminpassword",
+                "phone": "01733333333",
+                "address": "Admin HQ"
+            }
+        )
+        admin_user = db.query(User).filter(User.email == admin_email).first()
+    admin_user.is_admin = True
+    admin_user.is_verified = True
+    admin_user.is_active = True
+    db.commit()
+    
+    # Login user
+    user_login = client.post("/api/v1/auth/login", json={"email": email, "password": "password123"})
+    user_token = user_login.json()["tokens"]["access"]
+    user_headers = {"Authorization": f"Bearer {user_token}"}
+    
+    # Login admin
+    admin_login = client.post("/api/v1/auth/login", json={"email": admin_email, "password": "adminpassword"})
+    admin_token = admin_login.json()["tokens"]["access"]
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    
+    # Place an order
+    product = db.query(Product).filter(Product.name == "Test Order Product").first()
+    client.post(
+        "/api/v1/cart/items/",
+        headers=user_headers,
+        json={"product_id": product.id, "quantity": 1}
+    )
+    checkout_res = client.post(
+        "/api/v1/orders/checkout",
+        headers=user_headers,
+        json={
+            "shipping_address": "789 Road, Dhaka",
+            "phone": "01722222222",
+            "payment_method": "cod"
+        }
+    )
+    assert checkout_res.status_code == 200
+    order_id = checkout_res.json()["id"]
+    
+    # Initial status checks
+    assert checkout_res.json()["status"] == "pending"
+    assert checkout_res.json()["payment_status"] == "pending"
+    assert checkout_res.json()["review_status"] == "requested"
+    
+    # Submit review directly should fail (status is not under_process)
+    review_res = client.post(
+        f"/api/v1/orders/{order_id}/submit-review",
+        headers=user_headers,
+        json={"review_text": "Great service!", "review_rating": 5}
+    )
+    assert review_res.status_code == 400
+    
+    # Admin approves order
+    approve_res = client.post(f"/api/v1/orders/{order_id}/approve", headers=admin_headers)
+    assert approve_res.status_code == 200
+    assert approve_res.json()["status"] == "under_process"
+    
+    # Submit review now succeeds
+    review_res = client.post(
+        f"/api/v1/orders/{order_id}/submit-review",
+        headers=user_headers,
+        json={"review_text": "Excellent medicine and fast delivery!", "review_rating": 5}
+    )
+    assert review_res.status_code == 200
+    assert review_res.json()["review_status"] == "submitted"
+    assert review_res.json()["review_text"] == "Excellent medicine and fast delivery!"
+    assert review_res.json()["review_rating"] == 5
+    
+    # Verify review as rejected first
+    verify_reject_res = client.post(
+        f"/api/v1/orders/{order_id}/verify-review",
+        headers=admin_headers,
+        json={"is_valid": False}
+    )
+    assert verify_reject_res.status_code == 200
+    assert verify_reject_res.json()["review_status"] == "rejected"
+    assert verify_reject_res.json()["status"] == "under_process"  # Still under_process
+    
+    # Submit review again
+    review_res = client.post(
+        f"/api/v1/orders/{order_id}/submit-review",
+        headers=user_headers,
+        json={"review_text": "Updated review text", "review_rating": 4}
+    )
+    assert review_res.status_code == 200
+    assert review_res.json()["review_status"] == "submitted"
+    
+    # Verify review as valid (Completes the order)
+    verify_accept_res = client.post(
+        f"/api/v1/orders/{order_id}/verify-review",
+        headers=admin_headers,
+        json={"is_valid": True}
+    )
+    assert verify_accept_res.status_code == 200
+    assert verify_accept_res.json()["review_status"] == "verified"
+    assert verify_accept_res.json()["status"] == "completed"

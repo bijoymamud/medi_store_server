@@ -39,12 +39,8 @@ def create_product(
 
     image_url = None
     if image:
-        file_ext = image.filename.split(".")[-1]
-        file_name = f"{uuid.uuid4()}.{file_ext}"
-        file_path = os.path.join(UPLOAD_DIR, file_name)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(image.file, buffer)
-        image_url = f"/uploads/products/{file_name}"
+        from src.utils.storage import upload_file
+        image_url = upload_file(image, "products")
 
     new_product = Product(
         name=name,
@@ -172,12 +168,8 @@ def update_product(
         product.is_active = is_active
         
     if image:
-        file_ext = image.filename.split(".")[-1]
-        file_name = f"{uuid.uuid4()}.{file_ext}"
-        file_path = os.path.join(UPLOAD_DIR, file_name)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(image.file, buffer)
-        product.image_url = f"/uploads/products/{file_name}"
+        from src.utils.storage import upload_file
+        product.image_url = upload_file(image, "products")
 
     db.commit()
     db.refresh(product)

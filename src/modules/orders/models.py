@@ -7,12 +7,17 @@ class Order(Base):
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     total_amount = Column(Float, nullable=False)
     shipping_address = Column(String, nullable=False)
     phone = Column(String, nullable=False)
-    status = Column(String, default="pending", nullable=False)  # pending, paid, failed, completed, cancelled
+    status = Column(String, default="pending", nullable=False)  # pending, under_process, completed, rejected, failed, cancelled
     payment_method = Column(String, default="sslcommerz", nullable=False)  # sslcommerz, cod
+    payment_status = Column(String, default="pending", nullable=False)  # pending, paid, failed
+    review_status = Column(String, default="requested", nullable=False)  # requested, submitted, verified, rejected
+    review_text = Column(String, nullable=True)
+    review_rating = Column(Integer, nullable=True)
+    review_submitted_at = Column(DateTime(timezone=True), nullable=True)
     transaction_id = Column(String, unique=True, index=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -32,8 +37,8 @@ class OrderItem(Base):
     __tablename__ = "order_items"
 
     id = Column(Integer, primary_key=True, index=True)
-    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    order_id = Column(Integer, ForeignKey("orders.id"), index=True, nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), index=True, nullable=False)
     quantity = Column(Integer, nullable=False)
     price = Column(Float, nullable=False)  # Snapshotted price at checkout
 

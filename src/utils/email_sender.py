@@ -1,4 +1,4 @@
-import random
+import secrets
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -10,7 +10,7 @@ SMTP_EMAIL = os.getenv("SMTP_EMAIL")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 
 def generate_otp() -> str:
-    return str(random.randint(100000, 999999))
+    return "".join(secrets.choice("0123456789") for _ in range(6))
 
 def send_otp_email(email: str, otp: str):
     if not SMTP_EMAIL or not SMTP_PASSWORD:

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File, BackgroundTasks
 from pydantic import BaseModel
 from src.utils.dependencies import get_admin_user
 from sqlalchemy.orm import Session
@@ -26,6 +26,7 @@ def create_user(
     password: str = Form(...),
     address: str = Form(...),
     phone: str = Form(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
@@ -48,7 +49,7 @@ def create_user(
         address=address,
         is_active=False,
         is_verified=False,
-        is_admin=(email in ["webdev.bijoy@gmail.com", "bijoymamud.09@gmail.com"]),
+        is_admin=False,
         otp_code=otp,
         otp_expiry=datetime.now(timezone.utc) + timedelta(minutes=10)
     )
@@ -56,7 +57,7 @@ def create_user(
     db.commit()
     db.refresh(new_user)
     
-    send_otp_email(new_user.email, otp)
+    background_tasks.add_task(send_otp_email, new_user.email, otp)
     
     return new_user
 

@@ -61,15 +61,10 @@ async def update_profile(
     if "multipart/form-data" in content_type:
         form = await request.form()
         if "image" in form:
-            upload_file = form["image"]
-            if isinstance(upload_file, UploadFile) and upload_file.filename:
-                os.makedirs("uploads/profiles", exist_ok=True)
-                file_ext = os.path.splitext(upload_file.filename)[1]
-                filename = f"user_{current_user.id}_{int(datetime.now().timestamp())}{file_ext}"
-                file_path = f"uploads/profiles/{filename}"
-                with open(file_path, "wb") as buffer:
-                    shutil.copyfileobj(upload_file.file, buffer)
-                image_path = f"/uploads/profiles/{filename}"
+            uploaded_image = form["image"]
+            if isinstance(uploaded_image, UploadFile) and uploaded_image.filename:
+                from src.utils.storage import upload_file as upload_to_storage
+                image_path = upload_to_storage(uploaded_image, "profiles")
         
         if "first_name" in form:
             first_name = str(form.get("first_name"))

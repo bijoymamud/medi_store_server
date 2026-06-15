@@ -8,7 +8,7 @@ from typing import Any
 
 class Tokens(BaseModel):
     access: str
-    refresh: str
+    refresh: str | None = None
 
 class TokenResponse(BaseModel):
     message: str

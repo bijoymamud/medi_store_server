@@ -1,10 +1,26 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, JSON, Index, event, DDL
 from sqlalchemy.sql import func
 from src.database.connection import Base
 from sqlalchemy.orm import relationship
 
+# Ensure the pg_trgm extension is created in PostgreSQL before creating tables
+event.listen(
+    Base.metadata,
+    "before_create",
+    DDL("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+)
+
 class Product(Base):
     __tablename__ = "products"
+
+    __table_args__ = (
+        Index(
+            "ix_products_name_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"}
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)

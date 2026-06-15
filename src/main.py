@@ -12,7 +12,36 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
+sentry_dsn = os.getenv("SENTRY_DSN")
+if sentry_dsn:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastAPIIntegration
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            integrations=[FastAPIIntegration()],
+            traces_sample_rate=1.0,
+        )
+        print("Sentry SDK error tracking initialized.")
+    except Exception as e:
+        print(f"Failed to initialize Sentry SDK: {e}")
+
+from sqlalchemy import text
+
 Base.metadata.create_all(bind=engine)
+
+# Auto-migration: Ensure new Order workflow columns exist in PostgreSQL
+try:
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR DEFAULT 'pending' NOT NULL;"))
+        conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS review_status VARCHAR DEFAULT 'requested' NOT NULL;"))
+        conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS review_text VARCHAR;"))
+        conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS review_rating INTEGER;"))
+        conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS review_submitted_at TIMESTAMP WITH TIME ZONE;"))
+        conn.commit()
+    print("Database order columns auto-migration completed successfully.")
+except Exception as e:
+    print(f"Error executing database order columns auto-migration: {e}")
 
 os.makedirs("uploads", exist_ok=True)
 
@@ -20,13 +49,35 @@ app = FastAPI(title="MediStore API")
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+# Dynamic CORS origins configuration
+cors_origins_str = os.getenv("CORS_ALLOWED_ORIGINS")
+if cors_origins_str:
+    origins = [o.strip() for o in cors_origins_str.split(",")]
+else:
+    origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://10.10.13.99:5173",
+        "http://10.10.13.99:8010"
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://10.10.13.99:5173", "http://10.10.13.99:8010"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# HTTP Security Response Headers Middleware
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 app.include_router(users_router.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(auth_router.router, prefix="/api/v1/auth", tags=["auth"])
