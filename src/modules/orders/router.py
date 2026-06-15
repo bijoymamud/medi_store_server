@@ -175,7 +175,7 @@ async def checkout(
             try:
                 order_to_fail = db.query(models.Order).filter(models.Order.id == new_order.id).first()
                 if order_to_fail:
-                    order_to_fail.status = "failed"
+                    order_to_fail.status = "cancelled"
                     order_to_fail.payment_status = "failed"
                     for item in order_to_fail.items:
                         product = db.query(Product).filter(Product.id == item.product_id).first()
@@ -345,7 +345,7 @@ def approve_order(order_id: int, db: Session = Depends(get_db), admin_user: User
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     
-    order.status = "under_process"
+    order.status = "on_route"
     db.commit()
     db.refresh(order)
     return order
@@ -356,7 +356,7 @@ def reject_order(order_id: int, db: Session = Depends(get_db), admin_user: User 
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     
-    order.status = "rejected"
+    order.status = "cancelled"
     db.commit()
     db.refresh(order)
     return order
@@ -375,8 +375,8 @@ def submit_review(
     if order.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to submit review for this order")
         
-    if order.status != "under_process":
-        raise HTTPException(status_code=400, detail="Reviews can only be submitted for orders under process")
+    if order.status != "on_route":
+        raise HTTPException(status_code=400, detail="Reviews can only be submitted for orders on route")
         
     if order.review_status not in ["requested", "rejected"]:
         raise HTTPException(status_code=400, detail="A review has already been submitted or verified for this order")

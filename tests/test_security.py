@@ -173,7 +173,7 @@ def test_checkout_payment_failure_stock_restoration(mock_ssl):
     # Check that a failed order was created
     order = db.query(Order).filter(Order.user_id == user.id).first()
     assert order is not None
-    assert order.status == "failed"
+    assert order.status == "cancelled"
     db.close()
 
 def test_security_headers():

@@ -11,7 +11,7 @@ class Order(Base):
     total_amount = Column(Float, nullable=False)
     shipping_address = Column(String, nullable=False)
     phone = Column(String, nullable=False)
-    status = Column(String, default="pending", nullable=False)  # pending, under_process, completed, rejected, failed, cancelled
+    status = Column(String, default="pending", nullable=False)  # pending, on_route, completed, cancelled
     payment_method = Column(String, default="sslcommerz", nullable=False)  # sslcommerz, cod
     payment_status = Column(String, default="pending", nullable=False)  # pending, paid, failed
     review_status = Column(String, default="requested", nullable=False)  # requested, submitted, verified, rejected

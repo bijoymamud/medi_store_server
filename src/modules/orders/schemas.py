@@ -42,7 +42,7 @@ class OrderResponse(BaseModel):
         from_attributes = True
 
 class OrderStatusUpdate(BaseModel):
-    status: str = Field(..., pattern="^(pending|under_process|completed|rejected|failed|cancelled)$")
+    status: str = Field(..., pattern="^(on_route|completed|cancelled)$")
 
 class ReviewSubmitRequest(BaseModel):
     review_text: str

@@ -276,7 +276,7 @@ def test_order_workflow_approval_and_review(setup_db):
     assert checkout_res.json()["payment_status"] == "pending"
     assert checkout_res.json()["review_status"] == "requested"
     
-    # Submit review directly should fail (status is not under_process)
+    # Submit review directly should fail (status is not on_route)
     review_res = client.post(
         f"/api/v1/orders/{order_id}/submit-review",
         headers=user_headers,
@@ -287,7 +287,7 @@ def test_order_workflow_approval_and_review(setup_db):
     # Admin approves order
     approve_res = client.post(f"/api/v1/orders/{order_id}/approve", headers=admin_headers)
     assert approve_res.status_code == 200
-    assert approve_res.json()["status"] == "under_process"
+    assert approve_res.json()["status"] == "on_route"
     
     # Submit review now succeeds
     review_res = client.post(
@@ -308,7 +308,7 @@ def test_order_workflow_approval_and_review(setup_db):
     )
     assert verify_reject_res.status_code == 200
     assert verify_reject_res.json()["review_status"] == "rejected"
-    assert verify_reject_res.json()["status"] == "under_process"  # Still under_process
+    assert verify_reject_res.json()["status"] == "on_route"  # Still on_route
     
     # Submit review again
     review_res = client.post(
@@ -328,3 +328,19 @@ def test_order_workflow_approval_and_review(setup_db):
     assert verify_accept_res.status_code == 200
     assert verify_accept_res.json()["review_status"] == "verified"
     assert verify_accept_res.json()["status"] == "completed"
+
+    # Test transitioning from cancelled to on_route via PATCH status endpoint
+    # First, transition to cancelled
+    reject_res = client.post(f"/api/v1/orders/{order_id}/reject", headers=admin_headers)
+    assert reject_res.status_code == 200
+    assert reject_res.json()["status"] == "cancelled"
+
+    # Now patch status back to on_route
+    patch_res = client.patch(
+        f"/api/v1/orders/{order_id}/status",
+        headers=admin_headers,
+        json={"status": "on_route"}
+    )
+    assert patch_res.status_code == 200
+    assert patch_res.json()["status"] == "on_route"
+
