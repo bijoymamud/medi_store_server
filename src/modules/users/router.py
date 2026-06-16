@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from src.database.connection import get_db
 from src.modules.users import models, schemas
 from passlib.context import CryptContext
-from typing import Optional
+from typing import Optional, List
 import os
 import shutil
 
@@ -83,3 +83,57 @@ def promote_user(
     user.is_admin = True
     db.commit()
     return {"message": f"{user.email} has been promoted to admin"}
+
+@router.get("/admin/all", response_model=List[schemas.UserResponse])
+def list_all_users_admin(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_admin_user)
+):
+    return db.query(models.User).order_by(models.User.created_at.desc()).all()
+
+@router.post("/{user_id}/toggle-active")
+def toggle_user_active(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_admin_user)
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot block yourself")
+    user.is_active = not user.is_active
+    db.commit()
+    return {"message": "User active status updated", "is_active": user.is_active}
+
+@router.delete("/{user_id}")
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_admin_user)
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete yourself")
+    db.delete(user)
+    db.commit()
+    return {"message": "User deleted successfully"}
+
+class BulkDeleteRequest(BaseModel):
+    user_ids: List[int]
+
+@router.post("/admin/bulk-delete")
+def bulk_delete_users(
+    payload: BulkDeleteRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_admin_user)
+):
+    user_ids_to_delete = [uid for uid in payload.user_ids if uid != current_user.id]
+    if not user_ids_to_delete:
+        return {"message": "No users to delete"}
+    
+    db.query(models.User).filter(models.User.id.in_(user_ids_to_delete)).delete(synchronize_session=False)
+    db.commit()
+    return {"message": f"Successfully deleted {len(user_ids_to_delete)} users"}

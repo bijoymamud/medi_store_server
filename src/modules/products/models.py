@@ -29,6 +29,7 @@ class Product(Base):
     short_description = Column(String, nullable=True)
     description = Column(String, nullable=True)
     price = Column(Float, nullable=False)
+    purchase_amount = Column(Float, nullable=True, default=0.0)
     offer = Column(Integer, default=0)
     stock = Column(Integer, default=0)
     image_url = Column(String, nullable=True)

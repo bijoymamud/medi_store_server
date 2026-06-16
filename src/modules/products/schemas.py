@@ -14,6 +14,7 @@ class ProductBase(BaseModel):
 
 class ProductCreate(ProductBase):
     category_id: int
+    purchase_amount: Optional[float] = 0.0
     image_url: Optional[str] = None
     features: Optional[List[str]] = None
     specs: Optional[Dict[str, str]] = None
@@ -22,6 +23,7 @@ class ProductUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None
+    purchase_amount: Optional[float] = None
     stock: Optional[int] = None
     is_active: Optional[bool] = None
     category_id: Optional[int] = None
@@ -33,6 +35,12 @@ class ProductResponse(ProductBase):
     created_at: datetime
     features: Optional[List[str]] = None
     specs: Optional[Dict[str, str]] = None
+
+    class Config:
+        from_attributes = True
+
+class AdminProductResponse(ProductResponse):
+    purchase_amount: float
 
     class Config:
         from_attributes = True

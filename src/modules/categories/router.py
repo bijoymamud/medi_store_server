@@ -64,7 +64,8 @@ def get_categories(db: Session = Depends(get_db)):
             "id": cat.id,
             "name": cat.name,
             "description": cat.description,
-            "image_url": cat.image_url
+            "image_url": cat.image_url,
+            "created_at": cat.created_at.isoformat() if cat.created_at else None
         } for cat in categories
     ]
     cache_client.set("categories_list", serialized, expire_seconds=3600)

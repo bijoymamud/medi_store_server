@@ -8,6 +8,8 @@ from src.modules.products import router as products_router
 from src.modules.cart import router as cart_router
 from src.modules.orders import router as orders_router
 from src.modules.contact import router as contact_router
+from src.modules.special_offers import router as special_offers_router
+from src.modules.special_offers.models import SpecialOffer
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
@@ -38,6 +40,7 @@ try:
         conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS review_text VARCHAR;"))
         conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS review_rating INTEGER;"))
         conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS review_submitted_at TIMESTAMP WITH TIME ZONE;"))
+        conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS purchase_amount DOUBLE PRECISION DEFAULT 0.0;"))
         conn.commit()
     print("Database order columns auto-migration completed successfully.")
 except Exception as e:
@@ -87,6 +90,7 @@ app.include_router(products_router.router, prefix="/api/v1/products", tags=["pro
 app.include_router(cart_router.router, prefix="/api/v1/cart", tags=["cart"])
 app.include_router(orders_router.router, prefix="/api/v1/orders", tags=["orders"])
 app.include_router(contact_router.router, prefix="/api/v1/contact", tags=["contact"])
+app.include_router(special_offers_router.router, prefix="/api/v1/special-offers", tags=["special-offers"])
 
 @app.get("/health")
 def health_check():

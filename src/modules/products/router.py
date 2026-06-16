@@ -17,12 +17,13 @@ router = APIRouter()
 UPLOAD_DIR = "uploads/products"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-@router.post("/", response_model=schemas.ProductResponse)
+@router.post("/", response_model=schemas.AdminProductResponse)
 def create_product(
     name: str = Form(...),
     product_code: Optional[str] = Form(None),
     category_id: int = Form(...),
     price: float = Form(...),
+    purchase_amount: float = Form(0.0),
     offer: int = Form(0),
     stock: int = Form(0),
     short_description: Optional[str] = Form(None),
@@ -47,6 +48,7 @@ def create_product(
         product_code=product_code,
         category_id=category_id,
         price=price,
+        purchase_amount=purchase_amount,
         offer=offer,
         stock=stock,
         short_description=short_description,
@@ -57,10 +59,9 @@ def create_product(
     db.add(new_product)
     db.commit()
     db.refresh(new_product)
-    db.refresh(new_product)
     return new_product
 
-@router.post("/json/", response_model=schemas.ProductResponse)
+@router.post("/json/", response_model=schemas.AdminProductResponse)
 def create_product_json(
     payload: schemas.ProductCreate,
     db: Session = Depends(get_db),
@@ -75,6 +76,7 @@ def create_product_json(
         product_code=payload.product_code,
         category_id=payload.category_id,
         price=payload.price,
+        purchase_amount=payload.purchase_amount,
         offer=payload.offer,
         stock=payload.stock,
         short_description=payload.short_description,
@@ -97,6 +99,7 @@ def get_all_products(
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     search: Optional[str] = None,
+    sort: Optional[str] = None,
     page: int = Query(1, ge=1),
     limit: int = Query(8, ge=1, le=100),
     db: Session = Depends(get_db)
@@ -111,6 +114,8 @@ def get_all_products(
         query = query.filter(Product.price <= max_price)
     if search:
         query = query.filter(Product.name.ilike(f"%{search}%"))
+    if sort == "latest":
+        query = query.order_by(Product.created_at.desc())
 
     from sqlalchemy import func
     max_price_overall = db.query(func.max(Product.price)).filter(Product.is_active == True).scalar() or 0
@@ -133,12 +138,24 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Product not found")
     return product
 
-@router.put("/{product_id}", response_model=schemas.ProductResponse)
+@router.get("/admin/all", response_model=List[schemas.AdminProductResponse])
+def get_all_products_admin(db: Session = Depends(get_db), current_user: User = Depends(get_admin_user)):
+    return db.query(Product).order_by(Product.created_at.desc()).all()
+
+@router.get("/admin/{product_id}", response_model=schemas.AdminProductResponse)
+def get_product_admin(product_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_admin_user)):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+@router.put("/{product_id}", response_model=schemas.AdminProductResponse)
 def update_product(
     product_id: int,
     name: Optional[str] = Form(None),
     category_id: Optional[int] = Form(None),
     price: Optional[float] = Form(None),
+    purchase_amount: Optional[float] = Form(None),
     stock: Optional[int] = Form(None),
     description: Optional[str] = Form(None),
     is_active: Optional[bool] = Form(None),
@@ -160,6 +177,8 @@ def update_product(
         product.name = name
     if price is not None:
         product.price = price
+    if purchase_amount is not None:
+        product.purchase_amount = purchase_amount
     if stock is not None:
         product.stock = stock
     if description is not None:

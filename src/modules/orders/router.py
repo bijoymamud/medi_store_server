@@ -204,6 +204,47 @@ def list_orders(db: Session = Depends(get_db), current_user: User = Depends(get_
     orders = db.query(models.Order).filter(models.Order.user_id == current_user.id).order_by(models.Order.created_at.desc()).all()
     return orders
 
+@router.get("/admin/analytics")
+def get_admin_analytics(db: Session = Depends(get_db), admin_user: User = Depends(get_admin_user)):
+    from sqlalchemy import func
+    total_revenue = db.query(func.coalesce(func.sum(models.Order.total_amount), 0.0)).filter(
+        (models.Order.payment_status == "paid") | (models.Order.status == "completed")
+    ).scalar()
+
+    total_orders = db.query(func.count(models.Order.id)).scalar()
+
+    total_running_orders = db.query(func.count(models.Order.id)).filter(
+        models.Order.status.in_(["pending", "on_route"])
+    ).scalar()
+
+    current_inventory_cost = db.query(func.coalesce(func.sum(Product.stock * Product.purchase_amount), 0.0)).scalar()
+    
+    sold_inventory_cost = db.query(
+        func.coalesce(func.sum(models.OrderItem.quantity * Product.purchase_amount), 0.0)
+    ).join(
+        Product, models.OrderItem.product_id == Product.id
+    ).join(
+        models.Order, models.OrderItem.order_id == models.Order.id
+    ).filter(
+        (models.Order.payment_status == "paid") | (models.Order.status == "completed")
+    ).scalar()
+
+    total_investment = current_inventory_cost + sold_inventory_cost
+
+    return {
+        "total_revenue": total_revenue,
+        "total_orders": total_orders,
+        "total_running_orders": total_running_orders,
+        "total_investment": total_investment
+    }
+
+
+@router.get("/admin/all", response_model=List[schemas.OrderResponse])
+def list_all_orders_admin(db: Session = Depends(get_db), admin_user: User = Depends(get_admin_user)):
+    orders = db.query(models.Order).order_by(models.Order.created_at.desc()).all()
+    return orders
+
+
 @router.get("/{order_id}", response_model=schemas.OrderResponse)
 def get_order_detail(order_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     order = db.query(models.Order).filter(models.Order.id == order_id).first()
@@ -322,12 +363,6 @@ async def payment_cancel(request: Request, db: Session = Depends(get_db)):
             
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
     return RedirectResponse(url=f"{frontend_url}/cart", status_code=303)
-
-
-@router.get("/admin/all", response_model=List[schemas.OrderResponse])
-def list_all_orders_admin(db: Session = Depends(get_db), admin_user: User = Depends(get_admin_user)):
-    orders = db.query(models.Order).order_by(models.Order.created_at.desc()).all()
-    return orders
 
 
 @router.delete("/{order_id}")

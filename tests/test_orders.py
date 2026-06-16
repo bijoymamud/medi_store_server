@@ -38,8 +38,10 @@ def setup_db():
             is_active=True
         )
         db.add(product)
-        db.commit()
-        db.refresh(product)
+    else:
+        product.stock = 100
+    db.commit()
+    db.refresh(product)
         
     yield db
 

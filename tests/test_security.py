@@ -124,8 +124,10 @@ def test_checkout_payment_failure_stock_restoration(mock_ssl):
     if not product:
         product = Product(name="Test Order Product", category_id=category.id, price=100.0, stock=50, is_active=True)
         db.add(product)
-        db.commit()
-        db.refresh(product)
+    else:
+        product.stock = 50
+    db.commit()
+    db.refresh(product)
         
     initial_stock = product.stock
     
