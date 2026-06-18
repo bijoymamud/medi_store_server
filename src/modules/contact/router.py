@@ -13,7 +13,10 @@ import os
 
 from src.utils.rate_limit import RateLimiter
 
+from src.utils.rate_limit import RateLimiter
+
 router = APIRouter()
+contact_limiter = RateLimiter(limit=5, window=60)
 contact_limiter = RateLimiter(limit=5, window=60)
 
 def send_contact_admin_email(request: models.ContactRequest):

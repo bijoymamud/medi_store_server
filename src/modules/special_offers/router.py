@@ -54,8 +54,8 @@ def update_special_offer(
 ):
     offer = db.query(SpecialOffer).filter(SpecialOffer.id == offer_id).first()
     if not offer:
-        raise HTTPException(status_code=404, detail="Special offer not found")
-
+        raise HTTPException(status_code=404, detail="Special Offer not found")
+        
     if product_name is not None:
         offer.product_name = product_name
     if selling_prize is not None:
@@ -64,10 +64,9 @@ def update_special_offer(
         offer.discount_prize = discount_prize
     if discount_amount is not None:
         offer.discount_amount = discount_amount
-        
-    if image:
+    if image is not None and image.filename:
         offer.product_image = upload_file(image, "special_offers")
-
+        
     db.commit()
     db.refresh(offer)
     return offer
@@ -80,7 +79,8 @@ def delete_special_offer(
 ):
     offer = db.query(SpecialOffer).filter(SpecialOffer.id == offer_id).first()
     if not offer:
-        raise HTTPException(status_code=404, detail="Special offer not found")
+        raise HTTPException(status_code=404, detail="Special Offer not found")
+        
     db.delete(offer)
     db.commit()
-    return {"message": "Special offer deleted successfully"}
+    return {"status": "success", "message": "Special Offer deleted successfully"}

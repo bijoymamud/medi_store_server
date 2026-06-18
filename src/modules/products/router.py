@@ -159,6 +159,12 @@ def update_product(
     stock: Optional[int] = Form(None),
     description: Optional[str] = Form(None),
     is_active: Optional[bool] = Form(None),
+    product_code: Optional[str] = Form(None),
+    short_description: Optional[str] = Form(None),
+    offer: Optional[int] = Form(None),
+    features: Optional[str] = Form(None),
+    specs: Optional[str] = Form(None),
+    image_url: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_admin_user)
@@ -185,6 +191,29 @@ def update_product(
         product.description = description
     if is_active is not None:
         product.is_active = is_active
+    if product_code is not None:
+        product.product_code = product_code or None
+    if short_description is not None:
+        product.short_description = short_description or None
+    if offer is not None:
+        product.offer = offer
+
+    if features is not None:
+        import json
+        try:
+            product.features = json.loads(features) if features else []
+        except Exception:
+            pass
+
+    if specs is not None:
+        import json
+        try:
+            product.specs = json.loads(specs) if specs else {}
+        except Exception:
+            pass
+
+    if image_url is not None:
+        product.image_url = image_url or None
         
     if image:
         from src.utils.storage import upload_file

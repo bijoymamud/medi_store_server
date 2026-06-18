@@ -10,9 +10,25 @@ from src.modules.orders import router as orders_router
 from src.modules.contact import router as contact_router
 from src.modules.special_offers import router as special_offers_router
 from src.modules.special_offers.models import SpecialOffer
+from src.modules.testimonials import router as testimonials_router
+from src.modules.testimonials.models import Testimonial
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
+
+sentry_dsn = os.getenv("SENTRY_DSN")
+if sentry_dsn:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastAPIIntegration
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            integrations=[FastAPIIntegration()],
+            traces_sample_rate=1.0,
+        )
+        print("Sentry SDK error tracking initialized.")
+    except Exception as e:
+        print(f"Failed to initialize Sentry SDK: {e}")
 
 sentry_dsn = os.getenv("SENTRY_DSN")
 if sentry_dsn:
@@ -60,6 +76,12 @@ else:
     origins = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+        "http://localhost:5175",
+        "http://127.0.0.1:5175",
+        "http://localhost:5176",
+        "http://127.0.0.1:5176",
         "http://10.10.13.99:5173",
         "http://10.10.13.99:8010"
     ]
@@ -91,6 +113,7 @@ app.include_router(cart_router.router, prefix="/api/v1/cart", tags=["cart"])
 app.include_router(orders_router.router, prefix="/api/v1/orders", tags=["orders"])
 app.include_router(contact_router.router, prefix="/api/v1/contact", tags=["contact"])
 app.include_router(special_offers_router.router, prefix="/api/v1/special-offers", tags=["special-offers"])
+app.include_router(testimonials_router.router, prefix="/api/v1/testimonials", tags=["testimonials"])
 
 @app.get("/health")
 def health_check():

@@ -54,38 +54,23 @@ def upload_file(file: UploadFile, folder: str = "uploads") -> str:
                 region_name=aws_region
             )
             file_ext = os.path.splitext(file.filename)[1]
-            unique_filename = f"{folder}/{uuid.uuid4()}{file_ext}"
-            
-            # Reset cursor and upload
-            file.file.seek(0)
-            s3_client.upload_fileobj(
-                file.file,
-                aws_bucket,
-                unique_filename,
-                ExtraArgs={'ContentType': file.content_type or 'image/jpeg'}
-            )
-            
-            return f"https://{aws_bucket}.s3.{aws_region}.amazonaws.com/{unique_filename}"
+            unique_filename = f"{uuid.uuid4().hex}{file_ext}"
+            s3_key = f"{folder}/{unique_filename}"
+            s3_client.upload_fileobj(file.file, aws_bucket, s3_key, ExtraArgs={"ACL": "public-read"})
+            return f"https://{aws_bucket}.s3.{aws_region}.amazonaws.com/{s3_key}"
         except Exception as e:
             print(f"AWS S3 upload failed: {e}. Falling back...")
 
-    # 3. Fallback: Local File Storage
+    # 3. Fallback: Local file system
     try:
-        local_dir = os.path.join("uploads", folder)
-        os.makedirs(local_dir, exist_ok=True)
-        
         file_ext = os.path.splitext(file.filename)[1]
-        filename = f"{uuid.uuid4()}{file_ext}"
-        
-        relative_url = f"/uploads/{folder}/{filename}"
-        absolute_path = os.path.join(local_dir, filename)
-        
-        # Reset cursor and save to disk
-        file.file.seek(0)
-        with open(absolute_path, "wb") as buffer:
+        unique_filename = f"{uuid.uuid4().hex}{file_ext}"
+        upload_dir = f"uploads/{folder}"
+        os.makedirs(upload_dir, exist_ok=True)
+        file_path = os.path.join(upload_dir, unique_filename)
+        with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-            
-        return relative_url
+        return f"/uploads/{folder}/{unique_filename}"
     except Exception as e:
-        print(f"Local file storage upload failed: {e}")
+        print(f"Local file upload failed: {e}")
         return ""

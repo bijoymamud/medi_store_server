@@ -364,7 +364,6 @@ async def payment_cancel(request: Request, db: Session = Depends(get_db)):
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
     return RedirectResponse(url=f"{frontend_url}/cart", status_code=303)
 
-
 @router.delete("/{order_id}")
 def delete_order(order_id: int, db: Session = Depends(get_db), admin_user: User = Depends(get_admin_user)):
     order = db.query(models.Order).filter(models.Order.id == order_id).first()

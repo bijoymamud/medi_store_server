@@ -115,6 +115,14 @@ def delete_category(category_id: int, db: Session = Depends(get_db), current_use
     category = db.query(Category).filter(Category.id == category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
+    
+    # Check if category contains products to avoid foreign key violation database crashes
+    if category.products:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete category '{category.name}' because it contains products. Please delete or reassign those products first."
+        )
+        
     db.delete(category)
     db.commit()
     from src.utils.cache import cache_client
