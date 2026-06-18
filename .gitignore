@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 # Virtual environments
 env/
@@ -15,15 +16,27 @@ venv.bak/
 .env
 .env.*
 *.env
+!.env.example
 
 # SQLite database
+*.sqlite3
+*.sqlite3-journal
 db.sqlite3
 db.sqlite3-journal
 
-# Django stuff
-*.log
+# Uploaded files (user uploads, not source)
+uploads/
+
+# Static files collected
 staticfiles/
 media/
+
+# Django / FastAPI logs
+*.log
+logs/
+
+# Pytest cache
+.pytest_cache/
 
 # IDEs and editors
 .vscode/
@@ -32,3 +45,9 @@ media/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Distribution / packaging
+.eggs/
+*.egg-info/
+dist/
+build/
