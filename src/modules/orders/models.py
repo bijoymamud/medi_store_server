@@ -12,13 +12,18 @@ class Order(Base):
     shipping_address = Column(String, nullable=False)
     phone = Column(String, nullable=False)
     status = Column(String, default="pending", nullable=False)  # pending, on_route, completed, cancelled
-    payment_method = Column(String, default="sslcommerz", nullable=False)  # sslcommerz, cod
+    payment_method = Column(String, default="sslcommerz", nullable=False)  # sslcommerz, cod, cod_prepaid
     payment_status = Column(String, default="pending", nullable=False)  # pending, paid, failed
+    prepaid_method = Column(String, nullable=True)  # bkash, nagad, rocket
+    prepaid_number = Column(String, nullable=True)  # sender phone number
+    prepaid_txid = Column(String, nullable=True)  # manual transaction ID
     review_status = Column(String, default="requested", nullable=False)  # requested, submitted, verified, rejected
     review_text = Column(String, nullable=True)
     review_rating = Column(Integer, nullable=True)
     review_submitted_at = Column(DateTime(timezone=True), nullable=True)
     transaction_id = Column(String, unique=True, index=True, nullable=False)
+    recipient_name = Column(String, nullable=True)
+    recipient_email = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -27,10 +32,14 @@ class Order(Base):
 
     @property
     def user_name(self) -> str:
+        if self.recipient_name:
+            return self.recipient_name
         return self.user.full_name if self.user else ""
 
     @property
     def user_email(self) -> str:
+        if self.recipient_email:
+            return self.recipient_email
         return self.user.email if self.user else ""
 
 class OrderItem(Base):

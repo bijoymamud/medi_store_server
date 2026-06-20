@@ -135,7 +135,12 @@ async def checkout(
         transaction_id=tran_id,
         status="pending",
         payment_status="pending",
-        review_status="requested"
+        review_status="requested",
+        prepaid_method=payload.prepaid_method if payload.payment_method == "cod_prepaid" else None,
+        prepaid_number=payload.prepaid_number if payload.payment_method == "cod_prepaid" else None,
+        prepaid_txid=payload.prepaid_txid if payload.payment_method == "cod_prepaid" else None,
+        recipient_name=payload.recipient_name,
+        recipient_email=payload.recipient_email
     )
     db.add(new_order)
     db.flush()

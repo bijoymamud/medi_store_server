@@ -5,7 +5,12 @@ from datetime import datetime
 class CheckoutRequest(BaseModel):
     shipping_address: str
     phone: str
-    payment_method: str = Field(..., pattern="^(sslcommerz|cod)$")
+    payment_method: str = Field(..., pattern="^(sslcommerz|cod|cod_prepaid)$")
+    prepaid_method: Optional[str] = None
+    prepaid_number: Optional[str] = None
+    prepaid_txid: Optional[str] = None
+    recipient_name: Optional[str] = None
+    recipient_email: Optional[str] = None
 
 class OrderItemResponse(BaseModel):
     id: int
@@ -34,6 +39,11 @@ class OrderResponse(BaseModel):
     review_rating: Optional[int] = None
     review_submitted_at: Optional[datetime] = None
     transaction_id: str
+    prepaid_method: Optional[str] = None
+    prepaid_number: Optional[str] = None
+    prepaid_txid: Optional[str] = None
+    recipient_name: Optional[str] = None
+    recipient_email: Optional[str] = None
     created_at: datetime
     items: List[OrderItemResponse]
     payment_url: Optional[str] = None    # SSLCommerz redirect URL
