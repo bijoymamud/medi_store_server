@@ -137,3 +137,42 @@ def bulk_delete_users(
     db.query(models.User).filter(models.User.id.in_(user_ids_to_delete)).delete(synchronize_session=False)
     db.commit()
     return {"message": f"Successfully deleted {len(user_ids_to_delete)} users"}
+
+class AdminCreateUserRequest(BaseModel):
+    email: str
+    password: str
+    role: str
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+
+@router.post("/admin/create", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
+def admin_create_user(
+    payload: AdminCreateUserRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_admin_user)
+):
+    if payload.role not in ["user", "admin"]:
+        raise HTTPException(status_code=400, detail="Invalid role. Must be 'user' or 'admin'.")
+        
+    db_user = db.query(models.User).filter(models.User.email == payload.email).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    hashed_password = get_password_hash(payload.password)
+    
+    new_user = models.User(
+        email=payload.email,
+        full_name=payload.full_name or payload.email.split('@')[0],
+        hashed_password=hashed_password,
+        phone=payload.phone,
+        address=payload.address,
+        is_active=True,
+        is_verified=True,
+        is_admin=True if payload.role == "admin" else False
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+

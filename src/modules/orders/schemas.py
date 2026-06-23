@@ -60,3 +60,23 @@ class ReviewSubmitRequest(BaseModel):
 
 class ReviewVerifyRequest(BaseModel):
     is_valid: bool
+
+
+class AnalyticsTrendItem(BaseModel):
+    name: str
+    year: int
+    monthIndex: int
+    revenue: float
+    expense: float
+    reviews: int
+    orders: int
+    avgRating: float
+
+    class Config:
+        from_attributes = True
+
+
+class PaymentStatusUpdate(BaseModel):
+    payment_status: str = Field(..., pattern="^(pending|paid|failed)$")
+
+

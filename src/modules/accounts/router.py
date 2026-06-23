@@ -62,9 +62,41 @@ async def update_profile(
         form = await request.form()
         if "image" in form:
             uploaded_image = form["image"]
+            print(f"[UPLOAD DEBUG] Got image field. Type: {type(uploaded_image)}, filename: {getattr(uploaded_image, 'filename', 'N/A')}")
             if isinstance(uploaded_image, UploadFile) and uploaded_image.filename:
-                from src.utils.storage import upload_file as upload_to_storage
-                image_path = upload_to_storage(uploaded_image, "profiles")
+                try:
+                    # Read all bytes from the async UploadFile
+                    file_bytes = await uploaded_image.read()
+                    print(f"[UPLOAD DEBUG] Read {len(file_bytes)} bytes from upload")
+                    
+                    if len(file_bytes) > 0:
+                        import uuid as uuid_mod
+                        file_ext = os.path.splitext(uploaded_image.filename)[1] or ".jpg"
+                        unique_filename = f"{uuid_mod.uuid4().hex}{file_ext}"
+                        upload_dir = os.path.join(os.getcwd(), "uploads", "profiles")
+                        os.makedirs(upload_dir, exist_ok=True)
+                        file_path = os.path.join(upload_dir, unique_filename)
+                        
+                        with open(file_path, "wb") as f:
+                            f.write(file_bytes)
+                        
+                        saved_size = os.path.getsize(file_path)
+                        print(f"[UPLOAD DEBUG] Saved to {file_path}, size: {saved_size} bytes")
+                        
+                        if saved_size > 0:
+                            image_path = f"/uploads/profiles/{unique_filename}"
+                            print(f"[UPLOAD DEBUG] image_path set to: {image_path}")
+                        else:
+                            print(f"[UPLOAD DEBUG] ERROR: File saved but size is 0!")
+                    else:
+                        print(f"[UPLOAD DEBUG] ERROR: Read 0 bytes - file is empty!")
+                        
+                except Exception as e:
+                    print(f"[UPLOAD DEBUG] EXCEPTION during upload: {type(e).__name__}: {e}")
+            else:
+                print(f"[UPLOAD DEBUG] Skipped - not UploadFile or no filename")
+        else:
+            print(f"[UPLOAD DEBUG] 'image' key not in form. Form keys: {list(form.keys())}")
         
         if "first_name" in form:
             first_name = str(form.get("first_name"))
@@ -98,8 +130,10 @@ async def update_profile(
         current_user.phone = phone
     if address is not None:
         current_user.address = address
-    if image_path is not None:
+    # Only update image if upload actually succeeded (non-empty path)
+    if image_path:
         current_user.image = image_path
+        print(f"[UPLOAD DEBUG] Saving image path to DB: {image_path}")
         
     db.commit()
     db.refresh(current_user)

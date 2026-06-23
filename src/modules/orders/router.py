@@ -213,7 +213,7 @@ def list_orders(db: Session = Depends(get_db), current_user: User = Depends(get_
 def get_admin_analytics(db: Session = Depends(get_db), admin_user: User = Depends(get_admin_user)):
     from sqlalchemy import func
     total_revenue = db.query(func.coalesce(func.sum(models.Order.total_amount), 0.0)).filter(
-        (models.Order.payment_status == "paid") | (models.Order.status == "completed")
+        models.Order.status != "cancelled"
     ).scalar()
 
     total_orders = db.query(func.count(models.Order.id)).scalar()
@@ -231,17 +231,103 @@ def get_admin_analytics(db: Session = Depends(get_db), admin_user: User = Depend
     ).join(
         models.Order, models.OrderItem.order_id == models.Order.id
     ).filter(
-        (models.Order.payment_status == "paid") | (models.Order.status == "completed")
+        models.Order.status != "cancelled"
+    ).scalar()
+
+    sold_inventory_selling_cost = db.query(
+        func.coalesce(func.sum(models.OrderItem.quantity * models.OrderItem.price), 0.0)
+    ).join(
+        models.Order, models.OrderItem.order_id == models.Order.id
+    ).filter(
+        models.Order.status != "cancelled"
     ).scalar()
 
     total_investment = current_inventory_cost + sold_inventory_cost
 
     return {
-        "total_revenue": total_revenue,
+        "total_revenue": total_revenue - sold_inventory_cost,
         "total_orders": total_orders,
         "total_running_orders": total_running_orders,
-        "total_investment": total_investment
+        "total_investment": total_investment,
+        "current_inventory_cost": current_inventory_cost,
+        "sold_inventory_selling_cost": sold_inventory_selling_cost
     }
+
+
+
+@router.get("/admin/analytics/trends", response_model=List[schemas.AnalyticsTrendItem])
+def get_admin_trends(db: Session = Depends(get_db), admin_user: User = Depends(get_admin_user)):
+    from datetime import datetime, timezone
+    import calendar
+    
+    months = []
+    current_date = datetime.now(timezone.utc)
+    current_year = current_date.year
+    current_month = current_date.month
+    
+    for i in range(5, -1, -1):
+        m = current_month - i
+        y = current_year
+        while m <= 0:
+            m += 12
+            y -= 1
+        
+        month_name = calendar.month_abbr[m]
+        months.append({
+            "name": month_name,
+            "year": y,
+            "monthIndex": m - 1,
+            "revenue": 0.0,
+            "expense": 0.0,
+            "reviews": 0,
+            "ratingSum": 0.0,
+            "ratingCount": 0,
+            "orders": 0
+        })
+        
+    first_month = months[0]
+    start_date = datetime(first_month["year"], first_month["monthIndex"] + 1, 1, tzinfo=timezone.utc)
+    
+    from sqlalchemy.orm import joinedload
+    orders = db.query(models.Order).options(
+        joinedload(models.Order.items).joinedload(models.OrderItem.product)
+    ).filter(models.Order.created_at >= start_date).all()
+    
+    for o in orders:
+        o_date = o.created_at
+        if o_date is None:
+            continue
+        for m in months:
+            if m["monthIndex"] == o_date.month - 1 and m["year"] == o_date.year:
+                m["orders"] += 1
+                amount = o.total_amount or 0.0
+                if o.status != "cancelled":
+                    m["revenue"] += amount
+                    # Calculate true cost of goods sold (actual purchase prices)
+                    order_expense = 0.0
+                    for item in o.items:
+                        purchase_rate = item.product.purchase_amount if (item.product and item.product.purchase_amount is not None) else 0.0
+                        order_expense += purchase_rate * item.quantity
+                    m["expense"] += order_expense
+
+
+                
+                if o.review_rating is not None:
+                    m["reviews"] += 1
+                    m["ratingSum"] += o.review_rating
+                    m["ratingCount"] += 1
+                break
+                
+    for m in months:
+        if m["ratingCount"] > 0:
+            m["avgRating"] = round(m["ratingSum"] / m["ratingCount"], 1)
+        else:
+            m["avgRating"] = 0.0
+        del m["ratingSum"]
+        del m["ratingCount"]
+        
+    return months
+
 
 
 @router.get("/admin/all", response_model=List[schemas.OrderResponse])
@@ -290,6 +376,24 @@ def update_order_status(
     db.commit()
     db.refresh(order)
     return order
+
+
+@router.patch("/{order_id}/payment-status", response_model=schemas.OrderResponse)
+def update_order_payment_status(
+    order_id: int,
+    payload: schemas.PaymentStatusUpdate,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_admin_user)
+):
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+        
+    order.payment_status = payload.payment_status
+    db.commit()
+    db.refresh(order)
+    return order
+
 
 @router.post("/payment/success")
 @router.get("/payment/success")
