@@ -344,3 +344,93 @@ def test_order_workflow_approval_and_review(setup_db):
     assert patch_res.status_code == 200
     assert patch_res.json()["status"] == "on_route"
 
+def test_admin_analytics_paid_only(setup_db):
+    db = setup_db
+    
+    # 1. Clean up any test users/orders
+    email = "analytics_test@example.com"
+    existing_user = db.query(User).filter(User.email == email).first()
+    if existing_user:
+        db.delete(existing_user)
+        db.commit()
+
+    # 2. Register user
+    client.post(
+        "/api/v1/users/",
+        data={
+            "first_name": "Analytics",
+            "last_name": "Tester",
+            "email": email,
+            "password": "password123",
+            "phone": "01722222222",
+            "address": "789 Road, Dhaka"
+        }
+    )
+    user = db.query(User).filter(User.email == email).first()
+    user.is_verified = True
+    user.is_active = True
+    db.commit()
+
+    # Get admin token
+    admin_email = "admin_workflow@example.com"
+    admin_login = client.post("/api/v1/auth/login", json={"email": admin_email, "password": "adminpassword"})
+    admin_token = admin_login.json()["tokens"]["access"]
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+    # 3. Create two orders directly in the DB
+    product = db.query(Product).filter(Product.name == "Test Order Product").first()
+    
+    # Order 1: Unpaid (pending)
+    order_unpaid = Order(
+        user_id=user.id,
+        total_amount=150.0,
+        shipping_address="Dhaka",
+        phone="01722222222",
+        payment_method="cod",
+        status="pending",
+        payment_status="pending",
+        transaction_id="TXN-TESTUNPAID"
+    )
+    db.add(order_unpaid)
+    db.flush()
+    order_item1 = OrderItem(order_id=order_unpaid.id, product_id=product.id, quantity=1, price=150.0)
+    db.add(order_item1)
+    
+    # Order 2: Paid
+    order_paid = Order(
+        user_id=user.id,
+        total_amount=300.0,
+        shipping_address="Dhaka",
+        phone="01722222222",
+        payment_method="cod",
+        status="pending",
+        payment_status="paid",
+        transaction_id="TXN-TESTPAID"
+    )
+    db.add(order_paid)
+    db.flush()
+    order_item2 = OrderItem(order_id=order_paid.id, product_id=product.id, quantity=2, price=150.0)
+    db.add(order_item2)
+    db.commit()
+
+    # 4. Fetch analytics
+    analytics_res = client.get("/api/v1/orders/admin/analytics", headers=admin_headers)
+    assert analytics_res.status_code == 200
+    data = analytics_res.json()
+    
+    assert data["total_orders"] >= 1
+    initial_revenue = data["total_revenue"]
+    initial_orders = data["total_orders"]
+    
+    # 5. Mark Order 1 as paid
+    pay_res = client.post(f"/api/v1/orders/{order_unpaid.id}/pay-success", headers=admin_headers)
+    assert pay_res.status_code == 200
+    
+    # Fetch analytics again
+    analytics_res2 = client.get("/api/v1/orders/admin/analytics", headers=admin_headers)
+    assert analytics_res2.status_code == 200
+    data2 = analytics_res2.json()
+    
+    assert data2["total_orders"] == initial_orders + 1
+
+

@@ -213,10 +213,12 @@ def list_orders(db: Session = Depends(get_db), current_user: User = Depends(get_
 def get_admin_analytics(db: Session = Depends(get_db), admin_user: User = Depends(get_admin_user)):
     from sqlalchemy import func
     total_revenue = db.query(func.coalesce(func.sum(models.Order.total_amount), 0.0)).filter(
-        models.Order.status != "cancelled"
+        models.Order.payment_status == "paid"
     ).scalar()
 
-    total_orders = db.query(func.count(models.Order.id)).scalar()
+    total_orders = db.query(func.count(models.Order.id)).filter(
+        models.Order.payment_status == "paid"
+    ).scalar()
 
     total_running_orders = db.query(func.count(models.Order.id)).filter(
         models.Order.status.in_(["pending", "on_route"])
@@ -231,7 +233,7 @@ def get_admin_analytics(db: Session = Depends(get_db), admin_user: User = Depend
     ).join(
         models.Order, models.OrderItem.order_id == models.Order.id
     ).filter(
-        models.Order.status != "cancelled"
+        models.Order.payment_status == "paid"
     ).scalar()
 
     sold_inventory_selling_cost = db.query(
@@ -239,7 +241,7 @@ def get_admin_analytics(db: Session = Depends(get_db), admin_user: User = Depend
     ).join(
         models.Order, models.OrderItem.order_id == models.Order.id
     ).filter(
-        models.Order.status != "cancelled"
+        models.Order.payment_status == "paid"
     ).scalar()
 
     total_investment = current_inventory_cost + sold_inventory_cost
@@ -299,9 +301,9 @@ def get_admin_trends(db: Session = Depends(get_db), admin_user: User = Depends(g
             continue
         for m in months:
             if m["monthIndex"] == o_date.month - 1 and m["year"] == o_date.year:
-                m["orders"] += 1
-                amount = o.total_amount or 0.0
-                if o.status != "cancelled":
+                if o.payment_status == "paid":
+                    m["orders"] += 1
+                    amount = o.total_amount or 0.0
                     m["revenue"] += amount
                     # Calculate true cost of goods sold (actual purchase prices)
                     order_expense = 0.0
@@ -309,8 +311,6 @@ def get_admin_trends(db: Session = Depends(get_db), admin_user: User = Depends(g
                         purchase_rate = item.product.purchase_amount if (item.product and item.product.purchase_amount is not None) else 0.0
                         order_expense += purchase_rate * item.quantity
                     m["expense"] += order_expense
-
-
                 
                 if o.review_rating is not None:
                     m["reviews"] += 1
