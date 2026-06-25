@@ -518,8 +518,8 @@ def submit_review(
     if order.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to submit review for this order")
         
-    if order.status != "on_route":
-        raise HTTPException(status_code=400, detail="Reviews can only be submitted for orders on route")
+    if order.status not in ["on_route", "completed"]:
+        raise HTTPException(status_code=400, detail="Reviews can only be submitted for orders on route or delivered")
         
     if order.review_status not in ["requested", "rejected"]:
         raise HTTPException(status_code=400, detail="A review has already been submitted or verified for this order")
