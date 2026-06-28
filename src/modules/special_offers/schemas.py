@@ -7,6 +7,8 @@ class SpecialOfferBase(BaseModel):
     selling_prize: float
     discount_prize: Optional[float] = None
     discount_amount: Optional[float] = None
+    category_id: Optional[int] = None
+    product_id: Optional[int] = None
 
 class SpecialOfferCreate(SpecialOfferBase):
     pass
@@ -16,6 +18,8 @@ class SpecialOfferUpdate(BaseModel):
     selling_prize: Optional[float] = None
     discount_prize: Optional[float] = None
     discount_amount: Optional[float] = None
+    category_id: Optional[int] = None
+    product_id: Optional[int] = None
 
 class SpecialOfferResponse(SpecialOfferBase):
     id: int

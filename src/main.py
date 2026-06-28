@@ -62,6 +62,8 @@ try:
         conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS recipient_name VARCHAR;"))
         conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS recipient_email VARCHAR;"))
         conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS purchase_amount DOUBLE PRECISION DEFAULT 0.0;"))
+        conn.execute(text("ALTER TABLE special_offers ADD COLUMN IF NOT EXISTS category_id INTEGER;"))
+        conn.execute(text("ALTER TABLE special_offers ADD COLUMN IF NOT EXISTS product_id INTEGER;"))
         conn.commit()
     print("Database order columns auto-migration completed successfully.")
 except Exception as e:

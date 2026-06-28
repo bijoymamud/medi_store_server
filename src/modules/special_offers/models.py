@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from src.database.connection import Base
 
 class SpecialOffer(Base):
@@ -11,4 +12,9 @@ class SpecialOffer(Base):
     discount_prize = Column(Float, nullable=True)
     discount_amount = Column(Float, nullable=True)
     product_image = Column(String, nullable=True)
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
+    product_id = Column(Integer, ForeignKey("products.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    category = relationship("Category")
+    product = relationship("Product")

@@ -57,7 +57,7 @@ def create_user(
     db.commit()
     db.refresh(new_user)
     
-    background_tasks.add_task(send_otp_email, new_user.email, otp)
+    background_tasks.add_task(send_otp_email, new_user.email, otp, False)
     
     return new_user
 

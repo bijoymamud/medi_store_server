@@ -155,7 +155,7 @@ def forgot_password(
     user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=10)
     db.commit()
     
-    background_tasks.add_task(send_otp_email, user.email, otp)
+    background_tasks.add_task(send_otp_email, user.email, otp, True)
     return {"message": "If that email is registered, an OTP has been sent."}
 
 @router.post("/reset-password")

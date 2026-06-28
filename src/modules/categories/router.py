@@ -46,29 +46,11 @@ def create_category(
     db.add(new_category)
     db.commit()
     db.refresh(new_category)
-    from src.utils.cache import cache_client
-    cache_client.delete("categories_list")
     return new_category
 
 @router.get("/", response_model=List[schemas.CategoryResponse])
 def get_categories(db: Session = Depends(get_db)):
-    from src.utils.cache import cache_client
-    cached = cache_client.get("categories_list")
-    if cached is not None:
-        return cached
-
     categories = db.query(Category).all()
-    # Serialize Pydantic schemas/dicts for storage
-    serialized = [
-        {
-            "id": cat.id,
-            "name": cat.name,
-            "description": cat.description,
-            "image_url": cat.image_url,
-            "created_at": cat.created_at.isoformat() if cat.created_at else None
-        } for cat in categories
-    ]
-    cache_client.set("categories_list", serialized, expire_seconds=3600)
     return categories
 
 @router.get("/{category_id}", response_model=schemas.CategoryResponse)
@@ -106,8 +88,6 @@ def update_category(
 
     db.commit()
     db.refresh(category)
-    from src.utils.cache import cache_client
-    cache_client.delete("categories_list")
     return category
 
 @router.delete("/{category_id}")
@@ -125,6 +105,4 @@ def delete_category(category_id: int, db: Session = Depends(get_db), current_use
         
     db.delete(category)
     db.commit()
-    from src.utils.cache import cache_client
-    cache_client.delete("categories_list")
     return {"message": "Category deleted successfully"}
