@@ -8,6 +8,7 @@ from src.modules.products import router as products_router
 from src.modules.cart import router as cart_router
 from src.modules.orders import router as orders_router
 from src.modules.contact import router as contact_router
+from src.modules.chatbot.router import router as chatbot_router
 from src.modules.special_offers import router as special_offers_router
 from src.modules.special_offers.models import SpecialOffer
 from src.modules.testimonials import router as testimonials_router
@@ -121,6 +122,7 @@ app.include_router(orders_router.router, prefix="/api/v1/orders", tags=["orders"
 app.include_router(contact_router.router, prefix="/api/v1/contact", tags=["contact"])
 app.include_router(special_offers_router.router, prefix="/api/v1/special-offers", tags=["special-offers"])
 app.include_router(testimonials_router.router, prefix="/api/v1/testimonials", tags=["testimonials"])
+app.include_router(chatbot_router, prefix="/api/chatbot", tags=["chatbot"])
 
 @app.get("/health")
 def health_check():

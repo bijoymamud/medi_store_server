@@ -12,3 +12,4 @@ passlib[bcrypt]
 bcrypt==3.2.2
 pyjwt
 python-multipart
+google-generativeai>=0.8.0
